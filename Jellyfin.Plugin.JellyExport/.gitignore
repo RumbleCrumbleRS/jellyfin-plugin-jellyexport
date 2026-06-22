@@ -1,0 +1,9 @@
+bin/
+obj/
+.nuget-packages/
+.dotnet-home/
+.local-share/
+*.user
+.vs/
+.idea/
+artifacts/

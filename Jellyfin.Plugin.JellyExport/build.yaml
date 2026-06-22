@@ -1,0 +1,22 @@
+---
+name: "JellyExport"
+guid: "e11c4e83-8b9a-40f8-a1a6-6646bcf723b5"
+version: "1.0.0.0"
+targetAbi: "10.11.0.0"
+framework: "net9.0"
+owner: "JellyPlug"
+overview: "Export and import plugins, plugin settings, repositories and custom CSS between Jellyfin servers."
+description: >
+  JellyExport bundles a server's installed plugins, their configuration files,
+  configured plugin repositories and the custom CSS / branding into a single JSON
+  file. Importing that bundle onto a fresh Jellyfin server restores the
+  repositories and settings and re-installs the listed plugins, reproducing the
+  original setup with one click.
+category: "General"
+artifacts:
+  - "Jellyfin.Plugin.JellyExport.dll"
+changelog: |
+  ### 1.0.0.0
+  - Initial release.
+  - Export installed plugins, plugin settings, repositories and custom CSS / branding.
+  - Import a bundle onto a fresh server: restore settings/repositories/branding and queue plugin installs.

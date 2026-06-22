@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <title>JellyExport</title>
+</head>
+<body>
+<div id="JellyExportConfigPage" data-role="page" class="page type-interior pluginConfigurationPage"
+     data-require="emby-button,emby-checkbox,emby-input">
+    <div data-role="content">
+        <div class="content-primary">
+            <form id="JellyExportConfigForm">
+                <div class="sectionTitleContainer flex align-items-center">
+                    <h2 class="sectionTitle">JellyExport</h2>
+                </div>
+                <p class="fieldDescription">
+                    Export this server's installed plugins, plugin settings, plugin repositories
+                    and custom CSS / branding into a single file, then import it onto a fresh
+                    Jellyfin server to reproduce the same setup.
+                </p>
+
+                <fieldset class="verticalSection verticalSection-extrabottompadding">
+                    <legend>Default import behaviour</legend>
+                    <label class="emby-checkbox-label">
+                        <input is="emby-checkbox" type="checkbox" id="ReinstallPlugins" />
+                        <span>Re-install listed plugins from repositories on import</span>
+                    </label>
+                    <label class="emby-checkbox-label">
+                        <input is="emby-checkbox" type="checkbox" id="RestoreRepositories" />
+                        <span>Restore plugin repositories on import</span>
+                    </label>
+                    <label class="emby-checkbox-label">
+                        <input is="emby-checkbox" type="checkbox" id="IncludeBranding" />
+                        <span>Include &amp; restore custom CSS / branding</span>
+                    </label>
+                    <button is="emby-button" type="submit" class="raised button-submit block">
+                        <span>Save</span>
+                    </button>
+                </fieldset>
+
+                <fieldset class="verticalSection verticalSection-extrabottompadding">
+                    <legend>Export</legend>
+                    <p class="fieldDescription">Download a bundle describing this server.</p>
+                    <button is="emby-button" type="button" id="ExportButton" class="raised block">
+                        <span>Download export bundle</span>
+                    </button>
+                </fieldset>
+
+                <fieldset class="verticalSection verticalSection-extrabottompadding">
+                    <legend>Import</legend>
+                    <p class="fieldDescription">
+                        Select a previously exported bundle. Settings, repositories and branding are
+                        applied immediately; listed plugins are queued for installation. A server
+                        restart is recommended afterwards.
+                    </p>
+                    <input type="file" id="ImportFile" accept="application/json,.json" />
+                    <button is="emby-button" type="button" id="ImportButton" class="raised block">
+                        <span>Import selected bundle</span>
+                    </button>
+                </fieldset>
+            </form>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        (function () {
+            var pluginId = "e11c4e83-8b9a-40f8-a1a6-6646bcf723b5";
+
+            function getPage() {
+                return document.querySelector('#JellyExportConfigPage');
+            }
+
+            function loadConfig(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    page.querySelector('#ReinstallPlugins').checked = config.ReinstallPlugins;
+                    page.querySelector('#RestoreRepositories').checked = config.RestoreRepositories;
+                    page.querySelector('#IncludeBranding').checked = config.IncludeBranding;
+                    Dashboard.hideLoadingMsg();
+                });
+            }
+
+            function saveConfig(page) {
+                Dashboard.showLoadingMsg();
+                ApiClient.getPluginConfiguration(pluginId).then(function (config) {
+                    config.ReinstallPlugins = page.querySelector('#ReinstallPlugins').checked;
+                    config.RestoreRepositories = page.querySelector('#RestoreRepositories').checked;
+                    config.IncludeBranding = page.querySelector('#IncludeBranding').checked;
+                    ApiClient.updatePluginConfiguration(pluginId, config).then(function (result) {
+                        Dashboard.processPluginConfigurationUpdateResult(result);
+                    });
+                });
+            }
+
+            function doExport() {
+                Dashboard.showLoadingMsg();
+                var url = ApiClient.getUrl('JellyExport/Export/Download');
+                ApiClient.ajax({ type: 'GET', url: url, dataType: 'text' }).then(function (text) {
+                    var blob = new Blob([text], { type: 'application/json' });
+                    var a = document.createElement('a');
+                    a.href = URL.createObjectURL(blob);
+                    a.download = 'jellyexport.json';
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(a.href);
+                    Dashboard.hideLoadingMsg();
+                }, function () {
+                    Dashboard.hideLoadingMsg();
+                    Dashboard.alert('Export failed. Check the server logs.');
+                });
+            }
+
+            function doImport(page) {
+                var fileInput = page.querySelector('#ImportFile');
+                if (!fileInput.files || !fileInput.files.length) {
+                    Dashboard.alert('Choose an export file first.');
+                    return;
+                }
+                var reader = new FileReader();
+                reader.onload = function () {
+                    var bundle;
+                    try {
+                        bundle = JSON.parse(reader.result);
+                    } catch (e) {
+                        Dashboard.alert('Selected file is not valid JSON.');
+                        return;
+                    }
+                    Dashboard.showLoadingMsg();
+                    ApiClient.ajax({
+                        type: 'POST',
+                        url: ApiClient.getUrl('JellyExport/Import'),
+                        data: JSON.stringify({ Bundle: bundle }),
+                        contentType: 'application/json',
+                        dataType: 'json'
+                    }).then(function (result) {
+                        Dashboard.hideLoadingMsg();
+                        var lines = [];
+                        lines.push((result.Applied || []).length + ' applied, '
+                            + (result.Skipped || []).length + ' skipped, '
+                            + (result.Errors || []).length + ' errors.');
+                        if (result.RestartRecommended) {
+                            lines.push('Restart the server to finish applying changes.');
+                        }
+                        (result.Errors || []).forEach(function (e) { lines.push('Error: ' + e); });
+                        Dashboard.alert({ title: 'Import complete', message: lines.join('\n') });
+                    }, function () {
+                        Dashboard.hideLoadingMsg();
+                        Dashboard.alert('Import failed. Check the server logs.');
+                    });
+                };
+                reader.readAsText(fileInput.files[0]);
+            }
+
+            var page = getPage();
+            page.querySelector('#JellyExportConfigForm').addEventListener('submit', function (e) {
+                saveConfig(getPage());
+                e.preventDefault();
+                return false;
+            });
+            page.querySelector('#ExportButton').addEventListener('click', doExport);
+            page.querySelector('#ImportButton').addEventListener('click', function () {
+                doImport(getPage());
+            });
+
+            page.addEventListener('viewshow', function () {
+                loadConfig(getPage());
+            });
+            // Initial load (viewshow may have already fired).
+            loadConfig(page);
+        })();
+    </script>
+</div>
+</body>
+</html>
