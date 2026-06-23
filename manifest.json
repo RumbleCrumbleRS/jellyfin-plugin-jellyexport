@@ -1,0 +1,21 @@
+[
+    {
+        "guid": "e11c4e83-8b9a-40f8-a1a6-6646bcf723b5",
+        "name": "JellyExport",
+        "description": "JellyExport bundles a server's installed plugins, their configuration files, configured plugin repositories and the custom CSS / branding into a single JSON file. Importing that bundle onto a fresh Jellyfin server restores the repositories and settings and re-installs the listed plugins.",
+        "overview": "Export and import plugins, settings, repositories and custom CSS between Jellyfin servers.",
+        "owner": "JellyPlug",
+        "category": "General",
+        "imageUrl": "",
+        "versions": [
+            {
+                "version": "1.0.0.0",
+                "changelog": "Initial release.",
+                "targetAbi": "10.11.0.0",
+                "sourceUrl": "https://github.com/RumbleCrumbleRS/jellyfin-plugin-jellyexport/releases/download/v1.0.0.0/jellyexport_1.0.0.0.zip",
+                "checksum": "3a17fae74eb7368de22b2c3e4cf02b72",
+                "timestamp": "2026-06-23T16:23:24Z"
+            }
+        ]
+    }
+]
